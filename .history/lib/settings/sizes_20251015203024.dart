@@ -1,14 +1,16 @@
+
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+ List<CameraDescription> cameras=[];
 
-List<CameraDescription> cameras = [];
+class Sizes{
 
-class Sizes {
-  static double height(context) {
+ static double height(context){
     return MediaQuery.of(context).size.height;
   }
-
-  static double width(context) {
+ static double width(context){
     return MediaQuery.of(context).size.width;
   }
+
 }
