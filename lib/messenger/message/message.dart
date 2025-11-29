@@ -44,7 +44,7 @@ class _MessagePageState extends State<MessagePage> {
     // scroll to bottom after a short delay
     Future.delayed(const Duration(milliseconds: 100), () {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 80,
+        0,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
@@ -87,7 +87,7 @@ class _MessagePageState extends State<MessagePage> {
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     // child: Text(m.content, style: TextStyle(color: textColor)),
-                    child: m.type == 'image' && (m.content?.isNotEmpty ?? false)
+                    child: m.type == 'image' 
                         ? GestureDetector(
                             onTap: () {
                               showDialog(
@@ -133,7 +133,7 @@ class _MessagePageState extends State<MessagePage> {
                               ),
                             ),
                           )
-                        : Text(m.content ?? '', style: TextStyle(color: textColor)),
+                        : Text(m.content , style: TextStyle(color: textColor)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -286,8 +286,19 @@ class _MessagePageState extends State<MessagePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children:[
                   Text(currentFriend.username ?? "User", style: const TextStyle(fontSize: 16, color: Colors.white)),
-                  //TODO: cần 1 API để trả về danh sách hoặc kiểm tra người dùng có đang onl không
-                  const Text('Active now', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                  BlocBuilder<MessageCubit, MessageState>(
+                    builder: (context, state) {
+                      String receiver = 'offline';
+                      if (state is MessageLoadedState) {
+                        receiver = state.receiverStatus;
+                      }
+                      // hiển thị tuỳ trạng thái
+                      if (receiver == 'online' || receiver == 'heartbeat') {
+                        return const Text('Active now', style: TextStyle(fontSize: 12, color: Colors.greenAccent));
+                      }
+                      return const Text('Offline', style: TextStyle(fontSize: 12, color: Colors.white70));
+                    },
+                  ),
                 ],
               ),
             ],

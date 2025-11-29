@@ -12,15 +12,21 @@ class MessageLoadingState extends MessageState {
 
 class MessageLoadedState extends MessageState {
   List<MessageModel> messengers;
+  String receiverStatus;
 
   MessageLoadedState({
-    required this.messengers
+    required this.messengers,
+    this.receiverStatus = 'Offline'
   });
 
   MessageLoadedState copyWith({
     List<MessageModel>? messengers,
+    String? receiverStatus
   }) {
-    return MessageLoadedState(messengers: messengers ?? this.messengers);
+    return MessageLoadedState(
+      messengers: messengers ?? this.messengers,
+      receiverStatus: receiverStatus ?? this.receiverStatus
+    );
   }
 }
 
