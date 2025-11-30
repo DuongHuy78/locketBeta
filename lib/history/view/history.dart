@@ -220,33 +220,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildImage(String url) {
-    final errorWidget =
-        (BuildContext context, Object error, StackTrace? stackTrace) =>
-            Container(
+    // Thay 'localhost' bằng IP tương thích nếu cần
+    if (url.contains("localhost")) {
+      url = url.replaceAll("localhost", "10.0.2.2");
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!
+                : null,
+            color: Colors.white,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        // Thử load local file nếu URL không load được
+        final file = File(url);
+        if (file.existsSync()) {
+          return Image.file(file,
+              fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
-              color: Colors.grey[800],
-              child: const Icon(Icons.image_not_supported,
-                  color: Colors.white54, size: 100),
-            );
+              errorBuilder: (context, error, stackTrace) => _errorWidget());
+        }
+        return _errorWidget();
+      },
+    );
+  }
 
-    if (url.startsWith('http')) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: errorWidget,
-      );
-    } else {
-      return Image.file(
-        File(url),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: errorWidget,
-      );
-    }
+  Widget _errorWidget() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.grey[800],
+      child: const Icon(Icons.broken_image, color: Colors.white54, size: 100),
+    );
   }
 
   Widget _buildHeader(PhotoModel photo) {
