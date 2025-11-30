@@ -1,13 +1,13 @@
 class PhotoModel {
   final String id;
-  final String userId;
+  final dynamic user; // String (userId) hoặc Map<String, dynamic>
   final String imageUrl;
   final DateTime timestamp;
   final String? caption;
 
   PhotoModel({
     required this.id,
-    required this.userId,
+    required this.user,
     required this.imageUrl,
     required this.timestamp,
     this.caption,
@@ -16,10 +16,12 @@ class PhotoModel {
   factory PhotoModel.fromJson(Map<String, dynamic> json) {
     return PhotoModel(
       id: json['_id'] ?? '',
-      userId: json['userId'] ?? '',
+      user: json['userId'] is String
+          ? json['userId']
+          : Map<String, dynamic>.from(json['userId'] ?? {}),
       imageUrl: json['imageUrl'] ?? '',
-      timestamp:
-          DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
+      timestamp: DateTime.parse(
+          json['timestamp'] ?? DateTime.now().toIso8601String()),
       caption: json['caption'],
     );
   }
@@ -27,7 +29,7 @@ class PhotoModel {
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
-      'userId': userId,
+      'userId': user,
       'imageUrl': imageUrl,
       'timestamp': timestamp.toIso8601String(),
       'caption': caption,
