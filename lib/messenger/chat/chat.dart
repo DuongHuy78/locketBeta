@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:locket_beta/messenger/chat/cubit/chat_cubit.dart';
 import 'package:locket_beta/messenger/chat/cubit/chat_state.dart';
-import 'package:locket_beta/messenger/message/message.dart';
+import 'package:locket_beta/messenger/message/view/message.dart';
 import 'package:locket_beta/model/chat_model.dart';
 
 class ChatPage extends StatefulWidget {
