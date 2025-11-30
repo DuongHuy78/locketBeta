@@ -114,6 +114,15 @@ class _LoginUIState extends State<LoginUI> {
                     hintText: 'Password',
                     isPassword: true,
                   ),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        "Forgot Password?",
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 30),
                   RichText(
                     textAlign: TextAlign.center,
