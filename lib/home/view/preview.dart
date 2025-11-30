@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:locket_beta/photo/cubit/photo_cubit.dart';
 import 'package:locket_beta/photo/cubit/photo_state.dart';
+import 'package:locket_beta/utils/local_storage.dart';
 
 class ImagePreview extends StatefulWidget {
   const ImagePreview({
@@ -34,6 +35,8 @@ class _ImagePreviewState extends State<ImagePreview> {
     final caption = _captionController.text.trim();
     final cubit = context.read<PhotoCubit>();
     final file = File(widget.imagePath);
+    final userId = await LocalStorage.getUserId() as String? ?? '6911d640d34f6a5c5694199e';
+
 
     showDialog(
       context: context,
@@ -43,7 +46,7 @@ class _ImagePreviewState extends State<ImagePreview> {
 
     await cubit.uploadPhotoFile(
       imageFile: file,
-      userId: '6911d640d34f6a5c5694199e',
+      userId: userId,
       caption: caption.isNotEmpty ? caption : null,
       imageUrl: widget.imagePath, // giữ đường dẫn gốc nếu cần
     );
@@ -56,6 +59,7 @@ class _ImagePreviewState extends State<ImagePreview> {
       source: ImageSource.gallery,
       imageQuality: 85,
     );
+    final userId = await LocalStorage.getUserId() as String? ?? '6911d640d34f6a5c5694199e';
 
     if (pickedFile == null) return;
 
@@ -71,7 +75,7 @@ class _ImagePreviewState extends State<ImagePreview> {
 
     await cubit.uploadPhotoFile(
       imageFile: file,
-      userId: '6911d640d34f6a5c5694199e',
+      userId: userId,
       caption: caption.isNotEmpty ? caption : null,
       imageUrl: pickedFile.path,
     );
