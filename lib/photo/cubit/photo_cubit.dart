@@ -115,4 +115,31 @@ class PhotoCubit extends Cubit<PhotoState> {
       emit(PhotoError("Không thể xóa ảnh: $e"));
     }
   }
+
+  Future<void> sendPhoto(
+    String senderId,
+    String receiverId,
+    String imageUrl,
+    String caption,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/photos/sendPhoto',
+        data: {
+          "senderId": senderId,
+          "receiverId": receiverId,
+          "imageUrl": imageUrl,
+          "caption": caption,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print("Gửi ảnh thành công: ${response.data}");
+      } else {
+        print("Lỗi khi gửi ảnh: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Lỗi sendPhoto: $e");
+    }
+  }
 }
