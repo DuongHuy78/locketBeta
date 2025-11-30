@@ -82,7 +82,6 @@ class FriendApi {
   Future<void> acceptFriendRequest(String requestId) async {
     try {
       await _dio.patch('/api/friends/requests/accept/$requestId');
-      await _dio.post('api/chats/create');
     } catch (e) {
       throw Exception('Failed to accept friend request: $e');
     }
