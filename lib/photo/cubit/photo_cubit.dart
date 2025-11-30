@@ -5,6 +5,7 @@ import 'package:bloc/bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:locket_beta/model/photo_model.dart';
 import 'package:locket_beta/photo/cubit/photo_state.dart';
+import 'package:locket_beta/utils/local_storage.dart';
 
 class PhotoCubit extends Cubit<PhotoState> {
   static const String baseUrl = 'http://10.0.2.2:8000/api';
@@ -67,7 +68,8 @@ class PhotoCubit extends Cubit<PhotoState> {
   Future<void> fetchPhotos() async {
     emit(PhotoLoading());
     try {
-      final response = await _dio.get('/photos');
+      final userId = await LocalStorage.getUserId() as String? ?? '6911d640d34f6a5c5694199e';
+      final response = await _dio.get('/photos/user/$userId');
 
       if (response.statusCode == 200) {
         final List<dynamic> photosJson = response.data['photos'];
