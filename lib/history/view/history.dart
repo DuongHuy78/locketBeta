@@ -220,11 +220,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildImage(String url) {
-    // Thay 'localhost' bằng IP tương thích nếu cần
-    if (url.contains("localhost")) {
-      url = url.replaceAll("localhost", "10.0.2.2");
-    }
-
+    // Cloudinary trả về URL trực tiếp, chỉ cần Image.network
     return Image.network(
       url,
       fit: BoxFit.cover,
@@ -243,26 +239,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         );
       },
       errorBuilder: (context, error, stackTrace) {
-        // Thử load local file nếu URL không load được
-        final file = File(url);
-        if (file.existsSync()) {
-          return Image.file(file,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (context, error, stackTrace) => _errorWidget());
-        }
-        return _errorWidget();
+        return Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: Colors.grey[800],
+          child:
+              const Icon(Icons.broken_image, color: Colors.white54, size: 100),
+        );
       },
-    );
-  }
-
-  Widget _errorWidget() {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: Colors.grey[800],
-      child: const Icon(Icons.broken_image, color: Colors.white54, size: 100),
     );
   }
 
