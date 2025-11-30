@@ -92,6 +92,11 @@ class _ChatPage extends State<ChatPage> {
                                 (m) => m.id != widget.currentUserId,
                                 orElse: () => chat.members.first,
                               );
+                              // xác định trạng thái online (an toàn với nhiều kiểu model)
+                              String status;
+                              status = state.receiverStatus;
+                              final bool isOnline = status == 'online' || status == 'heartbeat';
+
                               
                               // Lấy tin nhắn cuối cùng
                               final lastMessage = chat.lastMessage;
@@ -100,18 +105,37 @@ class _ChatPage extends State<ChatPage> {
                               
                               return ListTile(
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                                leading: CircleAvatar(
-                                  radius: 26,
-                                  backgroundColor: const Color(0xff47444c),
-                                  backgroundImage: otherMember.avatar != null 
-                                    ? NetworkImage(otherMember.avatar!)
-                                    : null,
-                                  child: otherMember.avatar == null
-                                    ? Text(
-                                        otherMember.username?.substring(0, 1).toUpperCase() ?? '?',
-                                        style: const TextStyle(color: Colors.white, fontSize: 20),
-                                      )
-                                    : null,
+                                leading: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 26,
+                                      backgroundColor: const Color(0xff47444c),
+                                      backgroundImage: otherMember.avatar != null 
+                                        ? NetworkImage(otherMember.avatar!)
+                                        : null,
+                                      child: otherMember.avatar == null
+                                        ? Text(
+                                            otherMember.username?.substring(0, 1).toUpperCase() ?? '?',
+                                            style: const TextStyle(color: Colors.white, fontSize: 20),
+                                          )
+                                        : null,
+                                    ),
+                                    if (isOnline)
+                                      Positioned(
+                                        right: -2,
+                                        bottom: -2,
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: Colors.greenAccent,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: const Color(0xff1d1b20), width: 2),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 title: Text(
                                   otherMember.username ?? 'Unknown',
