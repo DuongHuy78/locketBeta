@@ -258,8 +258,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildSenderInfo(PhotoModel photo) {
-    final userInitial =
-        photo.userId.isNotEmpty ? photo.userId[0].toUpperCase() : '?';
+    final username = photo.user['username'] ?? '?';
+    final avatarUrl = photo.user['avatarUrl'];
+    final userInitial = username.isNotEmpty ? username[0].toUpperCase() : '?';
     final diff = DateTime.now().difference(photo.timestamp);
     String timeAgo;
     if (diff.inDays > 0) {
@@ -278,26 +279,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
         CircleAvatar(
           radius: 18,
           backgroundColor: const Color(0xff47444c),
-          child: Text(
-            userInitial,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+          child: avatarUrl == null
+            ? Text(
+                username[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              )
+            : null,
         ),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(photo.userId,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600)),
-            Text(timeAgo,
-                style: const TextStyle(color: Colors.white54, fontSize: 14)),
+            Text(
+              username,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              timeAgo,
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 14,
+              ),
+            ),
           ],
         ),
       ],
