@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:locket_beta/utils/api_client.dart';
 import 'package:dio/dio.dart';
+import 'package:locket_beta/utils/api_client.dart';
 
 part 'edit_field_state.dart';
 
@@ -9,25 +10,35 @@ class EditFieldCubit extends Cubit<EditFieldState> {
 
   final dio = ApiClient().dio;
 
-  Future<void> updateField(Map<String, dynamic> data) async {
+  /// Cập nhật avatar (FormData chứa file ảnh)
+  Future<void> updateAvatar(FormData formData) async {
+    emit(EditFieldLoading());
+
     try {
-      emit(EditFieldLoading());
-      await dio.put("/api/users/profile", data: data);
-      print("UPDATE FIELD SUCCESS: $data");
-      emit(EditFieldSuccess());
+      final response = await dio.put(
+        "/api/users/avatar",
+        data: formData,
+      );
+
+      // Backend trả về user object đã cập nhật
+      final updatedUser = response.data["user"];
+
+      emit(EditFieldSuccess(updatedUser));
     } catch (e) {
-      emit(EditFieldError(e.toString()));
+      emit(EditFieldError("Upload thất bại: $e"));
     }
   }
 
-  Future<void> updateAvatar(FormData formData) async {
+  /// Cập nhật bất kỳ field nào (tên, bio, etc.)
+  Future<void> updateField(Map<String, dynamic> data) async {
+    emit(EditFieldLoading());
+
     try {
-      emit(EditFieldLoading());
-      await dio.put("/api/users/profile", data: formData);
-      print("UPDATE AVATAR SUCCESS: $formData");
-      emit(EditFieldSuccess());
+      final response = await dio.put("/api/users/profile", data: data);
+
+      emit(EditFieldSuccess(response.data));
     } catch (e) {
-      emit(EditFieldError(e.toString()));
+      emit(EditFieldError("Update thất bại: $e"));
     }
   }
 }
