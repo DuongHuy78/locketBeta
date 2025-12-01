@@ -3,6 +3,7 @@ import 'dart:developer' as developer; // Cho better logging
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:camera/camera.dart';
+import 'package:locket_beta/friends/cubit/friend_cubit.dart';
 import 'package:locket_beta/landing/views/landing_ui.dart';
 import 'package:locket_beta/messenger/chat/chat.dart';
 import 'package:locket_beta/signup/cubit/signup_cubit.dart';
@@ -47,6 +48,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<SignupCubit>(
           create: (_) => SignupCubit(), // <- thêm đây
         ),
+        BlocProvider(create: (_) => FriendCubit()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:locket_beta/friends/cubit/friend_cubit.dart';
 import 'package:locket_beta/friends/view/friends_screen.dart';
 import 'package:locket_beta/home/view/home.dart';
 import 'package:locket_beta/messenger/chat/chat.dart';
@@ -8,7 +9,6 @@ import 'package:locket_beta/photo/cubit/photo_cubit.dart';
 import 'package:locket_beta/photo/cubit/photo_state.dart';
 import 'package:locket_beta/profile/profile.dart';
 import 'package:locket_beta/model/photo_model.dart';
-import 'package:locket_beta/friends/cubit/friend_cubit.dart';
 import 'package:locket_beta/utils/local_storage.dart';
 import 'history_grid.dart';
 
@@ -187,7 +187,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     _buildSenderInfo(photo),
                     const SizedBox(height: 12),
                     _buildCaptionInput(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
                     _buildSendButton(photo),
                     const SizedBox(height: 40),
                     _buildBottomButtons(photo),
@@ -281,15 +281,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
           backgroundColor: const Color(0xff47444c),
           backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
           child: avatarUrl == null
-            ? Text(
-                username[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              )
-            : null,
+              ? Text(
+                  userInitial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                )
+              : null,
         ),
         const SizedBox(width: 12),
         Column(
@@ -305,10 +305,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             Text(
               timeAgo,
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.white54, fontSize: 14),
             ),
           ],
         ),
@@ -348,7 +345,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _selectFriendAndSend(PhotoModel photo) async {
     final friendCubit = context.read<FriendCubit>();
-
     await friendCubit.loadFriends();
     final friends = friendCubit.friends;
 
@@ -402,7 +398,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       final cubit = context.read<PhotoCubit>();
-
       await cubit.sendPhoto(senderId, friendId, photo.imageUrl, caption);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -454,79 +449,83 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
         ),
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.keyboard_arrow_up,
-              color: Colors.white, size: 28),
-          onSelected: (String value) {
-            final cubit = context.read<PhotoCubit>();
-            switch (value) {
-              case 'delete':
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Xác nhận xóa'),
-                    content: const Text('Bạn có chắc muốn xóa ảnh này?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Hủy'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          cubit.deletePhoto(photo.id);
-                        },
-                        child: const Text('Xóa'),
-                      ),
-                    ],
-                  ),
-                );
-                break;
-              case 'report':
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Tính năng báo cáo đang được phát triển')),
-                );
-                break;
-              case 'share':
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Chia sẻ ảnh')),
-                );
-                break;
-            }
-          },
-          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            const PopupMenuItem<String>(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Xóa ảnh'),
-                ],
+        Material(
+          color: Colors.transparent,
+          child: PopupMenuButton<String>(
+            icon: const Icon(Icons.keyboard_arrow_up,
+                color: Colors.white, size: 28),
+            onSelected: (String value) {
+              final cubit = context.read<PhotoCubit>();
+              switch (value) {
+                case 'delete':
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Xác nhận xóa'),
+                      content: const Text('Bạn có chắc muốn xóa ảnh này?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Hủy'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            cubit.deletePhoto(photo.id);
+                          },
+                          child: const Text('Xóa'),
+                        ),
+                      ],
+                    ),
+                  );
+                  break;
+                case 'report':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content:
+                            Text('Tính năng báo cáo đang được phát triển')),
+                  );
+                  break;
+                case 'share':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chia sẻ ảnh')),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Xóa ảnh'),
+                  ],
+                ),
               ),
-            ),
-            const PopupMenuItem<String>(
-              value: 'report',
-              child: Row(
-                children: [
-                  Icon(Icons.flag, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Text('Báo cáo'),
-                ],
+              const PopupMenuItem<String>(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag, color: Colors.orange),
+                    SizedBox(width: 8),
+                    Text('Báo cáo'),
+                  ],
+                ),
               ),
-            ),
-            const PopupMenuItem<String>(
-              value: 'share',
-              child: Row(
-                children: [
-                  Icon(Icons.share),
-                  SizedBox(width: 8),
-                  Text('Chia sẻ'),
-                ],
+              const PopupMenuItem<String>(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share),
+                    SizedBox(width: 8),
+                    Text('Chia sẻ'),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
