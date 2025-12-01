@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:locket_beta/messenger/imagPicker/imagePicker.dart';
 import 'package:locket_beta/messenger/message/cubit/message_cubit.dart';
 import 'package:locket_beta/messenger/message/cubit/message_state.dart';
+import 'package:locket_beta/messenger/message/view/dotWidget.dart';
 import 'package:locket_beta/model/chat_model.dart';
 import 'package:locket_beta/model/message_model.dart';
 
@@ -44,7 +45,7 @@ class _MessagePageState extends State<MessagePage> {
     // scroll to bottom after a short delay
     Future.delayed(const Duration(milliseconds: 100), () {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 80,
+        0,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
@@ -87,7 +88,7 @@ class _MessagePageState extends State<MessagePage> {
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     // child: Text(m.content, style: TextStyle(color: textColor)),
-                    child: m.type == 'image' && (m.content?.isNotEmpty ?? false)
+                    child: m.type == 'image' 
                         ? GestureDetector(
                             onTap: () {
                               showDialog(
@@ -133,7 +134,7 @@ class _MessagePageState extends State<MessagePage> {
                               ),
                             ),
                           )
-                        : Text(m.content ?? '', style: TextStyle(color: textColor)),
+                        : Text(m.content , style: TextStyle(color: textColor)),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -286,8 +287,19 @@ class _MessagePageState extends State<MessagePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children:[
                   Text(currentFriend.username ?? "User", style: const TextStyle(fontSize: 16, color: Colors.white)),
-                  //TODO: cần 1 API để trả về danh sách hoặc kiểm tra người dùng có đang onl không
-                  const Text('Active now', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                  BlocBuilder<MessageCubit, MessageState>(
+                    builder: (context, state) {
+                      String receiver = 'offline';
+                      if (state is MessageLoadedState) {
+                        receiver = state.receiverStatus;
+                      }
+                      // hiển thị tuỳ trạng thái
+                      if (receiver == 'online' || receiver == 'heartbeat') {
+                        return const Text('Active now', style: TextStyle(fontSize: 12, color: Colors.greenAccent));
+                      }
+                      return const Text('Offline', style: TextStyle(fontSize: 12, color: Colors.white70));
+                    },
+                  ),
                 ],
               ),
             ],
@@ -312,6 +324,35 @@ class _MessagePageState extends State<MessagePage> {
                         itemBuilder: (context, index) => _buildMessage(messages[index], context),
                       ),
                     ),
+
+                    //design các chấm cho thấy đang nhắn tin
+                    if (state.receiverTyping == 'true')
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            // avatar nhỏ của người kia
+                            const CircleAvatar(
+                              radius: 16,
+                              backgroundColor: Color(0xFF3A3A3E),
+                              child: Icon(Icons.person, size: 18, color: Colors.white70),
+                            ),
+                            const SizedBox(width: 8),
+                            // bubble giống message của đối phương chứa 3 icon dot (animated)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A2A2E),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const TypingDots(), // widget dùng ảnh dot_icont.png
+                            ),
+                          ],
+                        ),
+                      ),
+
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: const BoxDecoration(
@@ -329,6 +370,7 @@ class _MessagePageState extends State<MessagePage> {
                               controller: _controller,
                               style: const TextStyle(color: Colors.white),
                               textInputAction: TextInputAction.send,
+                              onChanged: (value) => context.read<MessageCubit>().startTyping(),
                               onSubmitted: (_) => _send(context),
                               decoration: InputDecoration(
                                 hintText: 'Nhắn tin...',

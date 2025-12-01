@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:locket_beta/messenger/message/cubit/message_state.dart';
 import 'package:locket_beta/model/chat_model.dart';
@@ -15,6 +16,8 @@ class MessageCubit extends Cubit<MessageState> {
   WebSocketChannel? _channel;
   StreamSubscription? _wsSub;
   Timer? _hbTimer;
+  Timer? _typingTimer;
+  String _isTyping = 'false';
   MessageCubit({
     required this.currentFriend,
     required this.chatId,
@@ -26,6 +29,9 @@ class MessageCubit extends Cubit<MessageState> {
   @override
   Future<void> close() {
     // đảm bảo đóng WS khi cubit bị đóng (BlocProvider sẽ gọi close())
+    _typingTimer?.cancel();
+    _isTyping = 'false';
+    _sendIsTyping();
     _cleanupSocket();
     return super.close();
   }
@@ -39,8 +45,8 @@ class MessageCubit extends Cubit<MessageState> {
 
     _sendPresence('online');
     _startHeartbeat();
+    startHearIsTyping();
 
-    // Lắng nghe messages từ server
     // Lắng nghe messages từ server — lưu subscription để cancel sau này
     _wsSub = _channel!.stream.listen((message) {
       
@@ -54,11 +60,34 @@ class MessageCubit extends Cubit<MessageState> {
       
         // Emit state mới (thêm message vào list hiện tại)
         if (state is MessageLoadedState) {
-          final current = (state as MessageLoadedState).messengers;
-          current.insert(0, newMessage);
-          emit(MessageLoadedState(messengers: current));
+          final current = List<MessageModel>.from((state as MessageLoadedState).messengers);
+          // tránh duplicate nếu server gửi lại message đã có (kiểm tra theo id nếu có)
+          final exists = current.any((m) => m.id == newMessage.id);
+          if (!exists) {
+            current.insert(0, newMessage);
+            emit((state as MessageLoadedState).copyWith(messengers: current));
+          }
+        } else {
+          emit(MessageLoadedState(messengers: [newMessage]));
         }
+        return;
       }
+
+      else if (data['event'] == 'presence_update') {
+        final status = (data['status'] ?? '').toString();
+        print("DEBUG: receiverStatus: " + status);
+        if (state is MessageLoadedState) {
+          final current = List<MessageModel>.from((state as MessageLoadedState).messengers);
+          emit((state as MessageLoadedState).copyWith(messengers: current, receiverStatus: status));
+        } else {
+          emit((state as MessageLoadedState).copyWith(receiverStatus: status));
+        }
+        return;
+      } else if (data['event'] == 'isTyping') {
+        String isTyping = data['status'];
+        emit((state as MessageLoadedState).copyWith(receiverTyping: isTyping));
+      }
+
       //Đóng kết nối an toàn = cancel subscription + channel.sink.close().
     }, onDone: () {
       _cleanupSocket();
@@ -71,6 +100,7 @@ class MessageCubit extends Cubit<MessageState> {
   void _cleanupSocket() { 
     try { _sendPresence('offline'); } catch (_) {}
     _stopHeartbeat();
+    stopTyping();
     try { _wsSub?.cancel(); } catch (_) {}
     try { _channel?.sink.close(); } catch (_) {}
     _wsSub = null;
@@ -84,8 +114,8 @@ class MessageCubit extends Cubit<MessageState> {
     final payload = jsonEncode({
       'event': 'presence',
       'userId': currentUserId,
-      'status': status, // 'online' | 'heartbeat' | 'away' | 'offline'
-      'ts': DateTime.now().toIso8601String(),
+      'status': status, // 'online' | 'heartbeat' | 'offline'
+      'timeSend' : DateTime.now().toIso8601String(),
     });
     try {
       _channel!.sink.add(payload);
@@ -94,7 +124,7 @@ class MessageCubit extends Cubit<MessageState> {
 
   void _startHeartbeat() {
     _hbTimer?.cancel();
-    _hbTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+    _hbTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _sendPresence('heartbeat');
     });
   }
@@ -102,6 +132,49 @@ class MessageCubit extends Cubit<MessageState> {
   void _stopHeartbeat() {
     _hbTimer?.cancel();
     _hbTimer = null;
+  }
+
+  void _sendIsTyping() {
+    if(_channel == null) return;
+
+    final payload = jsonEncode({
+      'event': 'isTyping',
+      'chatId': chatId,
+      'userId': currentUserId,
+      'status': _isTyping,
+      'timeSend': DateTime.now().toIso8601String(),
+    });
+    try {
+      _channel!.sink.add(payload);
+    } catch (_) {}
+  }
+
+  void startHearIsTyping() {
+    _sendIsTyping();
+  }
+
+  void startTyping() {
+    if(_isTyping == 'false') {
+      _isTyping = 'true';
+      _sendIsTyping();
+    }
+    
+    // reset timer: nếu không gõ trong 2s sẽ tự gửi typing=false
+      _typingTimer?.cancel();
+      _typingTimer = Timer(const Duration(seconds: 2), () {
+        _isTyping = 'false';
+        _sendIsTyping();
+        _typingTimer = null;
+    });
+  }
+
+  void stopTyping() {
+    _typingTimer?.cancel();
+    _typingTimer = null;
+        if (_isTyping == 'true') {
+      _isTyping = 'false';
+      _sendIsTyping();
+    }
   }
 
   void sendMessage(String content) {

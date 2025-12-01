@@ -1,11 +1,14 @@
+// ignore_for_file: avoid_print
+
+import 'dart:io';
 import 'package:bloc/bloc.dart';
 import 'package:dio/dio.dart';
 import 'package:locket_beta/model/photo_model.dart';
 import 'package:locket_beta/photo/cubit/photo_state.dart';
+import 'package:locket_beta/utils/local_storage.dart';
 
 class PhotoCubit extends Cubit<PhotoState> {
-  static const String baseUrl =
-      'http://10.0.2.2:8000/api'; // FIX: Port 5001, emulator IP (device: IP máy:5001)
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
   late final Dio _dio;
 
   PhotoCubit() : super(PhotoInitial()) {
@@ -13,108 +16,70 @@ class PhotoCubit extends Cubit<PhotoState> {
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 10),
-      headers: {'Content-Type': 'application/json'}, // JSON only
       validateStatus: (status) => status! < 500,
     ));
 
-    // Log interceptor
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        print('📤 Dio Request: ${options.method} ${options.path}');
-        print('Headers: ${options.headers}');
-        print('Body: ${options.data}');
-        handler.next(options);
-      },
-      onResponse: (response, handler) {
-        print('📥 Dio Response: ${response.statusCode}');
-        print('Data: ${response.data}');
-        handler.next(response);
-      },
-      onError: (error, handler) {
-        print('❌ Dio Error type: ${error.type}');
-        print('Message: ${error.message}');
-        if (error.response != null) {
-          print('Server status: ${error.response?.statusCode}');
-          print('Server data: ${error.response?.data}');
-        }
-        handler.next(error);
-      },
-    ));
+    _dio.interceptors
+        .add(LogInterceptor(responseBody: true, requestBody: true));
   }
 
-  // CREATE: POST JSON (FIX: plain Map, no FormData)
-  Future<void> uploadPhoto({
-    required String imageUrl,
+  Future<void> uploadPhotoFile({
+    required File imageFile,
     required String userId,
     String? caption,
+    required String imageUrl,
   }) async {
-    emit(PhotoUploading()); // Emit loading
+    emit(PhotoUploading());
     try {
-      print('🔄 Cubit upload: userId=$userId, imageUrl=$imageUrl');
+      print("🔄 Đang upload file: ${imageFile.path}");
+
+      final fileName = imageFile.path.split('/').last;
+
+      final formData = FormData.fromMap({
+        "userId": userId,
+        "caption": caption ?? "",
+        "image":
+            await MultipartFile.fromFile(imageFile.path, filename: fileName),
+      });
+
       final response = await _dio.post(
-        '/photos',
-        data: {
-          // Plain JSON Map (no FormData)
-          'userId': userId,
-          'imageUrl': imageUrl,
-          'caption': caption ?? '',
-        },
+        '/photos/upload',
+        data: formData,
+        options: Options(
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        ),
       );
 
       if (response.statusCode == 201) {
-        final data = response.data;
-        print('✅ Cubit success: $data');
-        final photo = PhotoModel.fromJson(data['photo']);
+        final photo = PhotoModel.fromJson(response.data["photo"]);
         emit(PhotoUpLoaded(photo));
-      } else if (response.statusCode! >= 400) {
-        final errorMsg = response.data['message'] ?? 'Unknown error';
-        throw Exception('Server error: ${response.statusCode} - $errorMsg');
       } else {
-        throw Exception('Unexpected status: ${response.statusCode}');
+        emit(PhotoError("Upload thất bại: ${response.data}"));
       }
-    } on DioException catch (e) {
-      print('❌ DioException: ${e.type} - ${e.message}');
-      if (e.response != null) {
-        print('Server response: ${e.response?.data}');
-        final errorMsg = e.response?.data['message'] ?? e.message;
-        emit(PhotoError('Lỗi API: $errorMsg'));
-      } else {
-        emit(PhotoError('Lỗi kết nối: ${e.message}'));
-      }
-      throw e;
-    } catch (e, stackTrace) {
-      print('❌ Cubit error: $e');
-      print('Stack: $stackTrace');
-      emit(PhotoError("Không thể tải ảnh lên: $e"));
-      throw e;
+    } catch (e) {
+      print("❌ Upload error: $e");
+      emit(PhotoError("Không thể upload ảnh: $e"));
     }
   }
 
-  // READ ALL (backend không hỗ trợ pagination hoặc filter userId, chỉ lấy tất cả)
+  // READ ALL
   Future<void> fetchPhotos() async {
-    // Đổi signature: bỏ userId, page, limit
     emit(PhotoLoading());
     try {
-      // Không dùng query params vì backend không hỗ trợ
-      final response = await _dio.get('/photos');
+      final userId = await LocalStorage.getUserId() as String? ?? '6911d640d34f6a5c5694199e';
+      final response = await _dio.get('/photos/user/$userId');
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        print(data);
-        final List<dynamic> photosJson = data['photos'] ?? [];
-        final photos =
-            photosJson.map((json) => PhotoModel.fromJson(json)).toList();
+        final List<dynamic> photosJson = response.data['photos'];
+        final photos = photosJson.map((e) => PhotoModel.fromJson(e)).toList();
         emit(PhotoLoaded(photos));
       } else {
-        throw Exception(
-            'Fetch failed: ${response.statusCode} - ${response.data}');
+        emit(PhotoError("Lỗi API: ${response.data}"));
       }
-    } on DioException catch (e) {
-      print('❌ Fetch Dio error: ${e.message}');
-      emit(PhotoError('Không thể lấy ảnh: ${e.message}'));
     } catch (e) {
-      print('❌ Fetch error: $e');
-      emit(PhotoError("Không thể lấy ảnh: $e"));
+      emit(PhotoError("Không thể tải danh sách ảnh: $e"));
     }
   }
 
@@ -125,88 +90,56 @@ class PhotoCubit extends Cubit<PhotoState> {
       final response = await _dio.get('/photos/$id');
 
       if (response.statusCode == 200) {
-        final photo = PhotoModel.fromJson(response.data);
-        emit(PhotoLoaded([photo]));
-      } else if (response.statusCode == 404) {
-        final errorMsg = response.data['message'] ?? "Không tìm thấy ảnh";
-        emit(PhotoError(errorMsg));
+        emit(PhotoLoaded([PhotoModel.fromJson(response.data)]));
       } else {
         emit(PhotoError("Không tìm thấy ảnh"));
       }
-    } on DioException catch (e) {
-      print('❌ Get Dio error: ${e.message}');
-      if (e.response?.statusCode == 404) {
-        final errorMsg = e.response?.data['message'] ?? 'Không tìm thấy ảnh';
-        emit(PhotoError(errorMsg));
-      } else {
-        emit(PhotoError('Không thể lấy ảnh: ${e.message}'));
-      }
     } catch (e) {
-      print('❌ Get error: $e');
-      emit(PhotoError("Không thể lấy ảnh: $e"));
+      emit(PhotoError("Lỗi lấy ảnh: $e"));
     }
   }
 
-  // UPDATE: Backend chưa có endpoint, tạm comment out
-  /*
-  Future<void> updatePhoto({
-    required String id,
-    String? imageUrl,
-    String? caption,
-  }) async {
-    emit(PhotoUpdating());
+  // DELETE
+  Future<void> deletePhoto(String id) async {
+    emit(PhotoDeleting());
     try {
-      final response = await _dio.put(
-        '/photos/$id',
+      final response = await _dio.delete('/photos/$id');
+
+      if (response.statusCode == 200) {
+        emit(PhotoDeleted(id));
+        fetchPhotos();
+      } else {
+        emit(PhotoError("Xóa thất bại"));
+      }
+    } catch (e) {
+      emit(PhotoError("Không thể xóa ảnh: $e"));
+    }
+  }
+
+  Future<void> sendPhoto(
+    String senderId,
+    String receiverId,
+    String imageUrl,
+    String caption,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/photos/sendPhoto',
         data: {
-          'imageUrl': imageUrl ?? '',
-          'caption': caption ?? '',
+          "senderId": senderId,
+          "receiverId": receiverId,
+          "imageUrl": imageUrl,
+          "caption": caption,
         },
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        final updatedPhoto = PhotoModel.fromJson(data['photo']);
-        emit(PhotoUpdated(updatedPhoto));
+        print("Gửi ảnh thành công: ${response.data}");
       } else {
-        emit(PhotoError("Không thể cập nhật ảnh"));
-      }
-    } on DioException catch (e) {
-      print('❌ Update Dio error: ${e.message}');
-      emit(PhotoError('Không thể cập nhật ảnh: ${e.message}'));
-    } catch (e) {
-      print('❌ Update error: $e');
-      emit(PhotoError("Không thể cập nhật ảnh: $e"));
-    }
-  }
-  */
-
-  // DELETE
-  Future<void> deletePhoto(String photoId) async {
-    emit(PhotoDeleting());
-    try {
-      final response = await _dio.delete('/photos/$photoId');
-
-      if (response.statusCode == 200) {
-        emit(PhotoDeleted(photoId));
-        await fetchPhotos(); // Refetch to update the list
-      } else if (response.statusCode == 404) {
-        final errorMsg = response.data['message'] ?? "Không thể xóa ảnh";
-        emit(PhotoError(errorMsg));
-      } else {
-        emit(PhotoError("Không thể xóa ảnh"));
-      }
-    } on DioException catch (e) {
-      print('❌ Delete Dio error: ${e.message}');
-      if (e.response?.statusCode == 404) {
-        final errorMsg = e.response?.data['message'] ?? 'Không thể xóa ảnh';
-        emit(PhotoError(errorMsg));
-      } else {
-        emit(PhotoError('Không thể xóa ảnh: ${e.message}'));
+        print("Lỗi khi gửi ảnh: ${response.statusCode}");
       }
     } catch (e) {
-      print('❌ Delete error: $e');
-      emit(PhotoError("Không thể xóa ảnh: $e"));
+      print("Lỗi sendPhoto: $e");
     }
   }
 }

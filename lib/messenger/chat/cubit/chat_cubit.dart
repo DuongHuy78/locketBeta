@@ -20,21 +20,30 @@ class ChatCubit extends Cubit<ChatState>{
     _channel = WebSocketChannel.connect(
       Uri.parse('ws://10.0.2.2:8000?userId=$currentUserId'),
     );
+
     // Lắng nghe messages từ server
     _channel!.stream.listen((message) {
-      print("Da stream voi server chat");
+      // print("Da stream voi server chat");
+
       // Parse message từ JSON
-      final data = jsonDecode(message);
-      if (data is! Map<String, dynamic>) return;
+      final data = jsonDecode(message); // jsonDecode(message) có thể trả String, List, num, hoặc Map tùy payload.
+      if (data is! Map<String, dynamic>) return;  // nghĩa là: nếu parsed JSON không phải object (Map) thì bỏ qua message.
+      
       if(data['event'] == 'chat_updated') {
-        print("đã nhận được event chat_updated từ server");
+        // print("đã nhận được event chat_updated từ server");
         final updatedChat = ChatModel.fromJson(data['chat']);
         if (state is ChatLoadedState) {
           final current = (state as ChatLoadedState);
           final updatedChats = current.chats.map((c) => c.id == updatedChat.id ? updatedChat : c).toList();
           emit(ChatLoadedState(chats: updatedChats, chatFilter: updatedChats));
         }
-      }
+      } else if (data['event'] == 'presence_update') {
+        String status = data['status'];
+        // print("DEBUG: receiverStatus: " + status);
+        final current = (state as ChatLoadedState).chats;
+        emit(ChatLoadedState(receiverStatus: status, chatFilter: current, chats: current));
+      } 
+
     }, onError: (error) {
       emit(ChatErrorState());
     });
@@ -54,7 +63,7 @@ class ChatCubit extends Cubit<ChatState>{
         // Parse danh sách chat từ JSON
         List<ChatModel> chats = chatsJson
             .map((json) {
-              print('Raw chat JSON: $json');
+              // print('Raw chat JSON: $json');
               return ChatModel.fromJson(json as Map<String, dynamic>);
             })
             .toList();
@@ -76,7 +85,11 @@ class ChatCubit extends Cubit<ChatState>{
       final filtered = q.isEmpty
           ? current.chats
           : current.chats.where((m) {
-            return m.members.any((member) => member.username?.toLowerCase().contains(q) ?? false);
+            return m.members.any((member) {
+              final username = member.username ?? '';
+              final isNotSelf = member.id != currentUserId;
+              return username.toLowerCase().contains(q) && isNotSelf ;
+            });
           }).toList();
 
       emit(ChatLoadedState(chats: current.chats, chatFilter: filtered));

@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:locket_beta/friends/cubit/friend_cubit.dart';
+import 'package:locket_beta/friends/cubit/friendRequest_cubit.dart';
+import 'package:locket_beta/friends/cubit/recommendation_cubit.dart';
 import 'package:locket_beta/friends/cubit/friend_state.dart';
+import 'package:locket_beta/friends/cubit/friendRequest_state.dart';
+import 'package:locket_beta/friends/cubit/recommendation_state.dart';
 import 'package:locket_beta/model/friend_model.dart';
 import 'package:locket_beta/model/friend_request_model.dart';
-import 'package:locket_beta/home/view/home.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => FriendCubit()
-        ..loadFriends()
-        ..loadFriendRequests()
-        ..loadRecommendations(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => FriendCubit()..loadFriends(),
+        ),
+        BlocProvider(
+          create: (_) => FriendRequestCubit()..loadFriendRequests(),
+        ),
+        BlocProvider(
+          create: (_) => RecommendationCubit()..loadRecommendations(),
+        ),
+      ],
       child: const FriendsView(),
     );
   }
@@ -46,18 +56,16 @@ class _FriendsViewState extends State<FriendsView>
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<FriendCubit>();
-
     return Scaffold(
       backgroundColor: const Color(0xff151415),
       appBar: AppBar(
         backgroundColor: const Color(0xff151415),
-        foregroundColor: Colors.white, // <- thêm dòng này
+        foregroundColor: Colors.white,
         title: const Text('Friends'),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white, // màu chữ tab được chọn
-          unselectedLabelColor: Colors.grey, // màu chữ tab chưa chọn
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.grey,
           tabs: const [
             Tab(text: 'Your Friends'),
             Tab(text: 'Requests'),
@@ -67,7 +75,7 @@ class _FriendsViewState extends State<FriendsView>
       ),
       body: Column(
         children: [
-          // "Find Friend from other App"
+          // Social links
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12),
             child: Column(
@@ -108,6 +116,7 @@ class _FriendsViewState extends State<FriendsView>
                 // Your Friends
                 BlocBuilder<FriendCubit, FriendState>(
                   builder: (context, state) {
+                    final cubit = context.read<FriendCubit>();
                     if (state is FriendLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is FriendLoaded) {
@@ -124,13 +133,14 @@ class _FriendsViewState extends State<FriendsView>
                 ),
 
                 // Friend Requests
-                BlocBuilder<FriendCubit, FriendState>(
+                BlocBuilder<FriendRequestCubit, FriendRequestState>(
                   builder: (context, state) {
-                    if (state is FriendLoading) {
+                    final cubit = context.read<FriendRequestCubit>();
+                    if (state is FriendRequestLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is FriendRequestLoaded) {
                       return _friendRequestList(state.requests, cubit);
-                    } else if (state is FriendError) {
+                    } else if (state is FriendRequestError) {
                       return Center(
                           child: Text(state.message,
                               style: const TextStyle(color: Colors.white)));
@@ -142,14 +152,15 @@ class _FriendsViewState extends State<FriendsView>
                 ),
 
                 // Recommendations
-                BlocBuilder<FriendCubit, FriendState>(
+                BlocBuilder<RecommendationCubit, RecommendationState>(
                   builder: (context, state) {
-                    if (state is FriendLoading) {
+                    final cubit = context.read<RecommendationCubit>();
+                    if (state is RecommendationLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is RecommendationLoaded) {
                       return _friendList(state.recommendations, cubit,
                           isRecommendation: true);
-                    } else if (state is FriendError) {
+                    } else if (state is RecommendationError) {
                       return Center(
                           child: Text(state.message,
                               style: const TextStyle(color: Colors.white)));
@@ -167,7 +178,7 @@ class _FriendsViewState extends State<FriendsView>
     );
   }
 
-  Widget _friendList(List<Friend> friends, FriendCubit cubit,
+  Widget _friendList(List<Friend> friends, dynamic cubit,
       {bool isRecommendation = false}) {
     if (friends.isEmpty) {
       return const Center(
@@ -215,7 +226,8 @@ class _FriendsViewState extends State<FriendsView>
     );
   }
 
-  Widget _friendRequestList(List<FriendRequest> requests, FriendCubit cubit) {
+  Widget _friendRequestList(
+      List<FriendRequest> requests, FriendRequestCubit cubit) {
     if (requests.isEmpty) {
       return const Center(
           child: Text('No requests',

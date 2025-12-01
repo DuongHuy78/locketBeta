@@ -17,7 +17,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       final dio = ApiClient().dio;
 
       // Interceptor tự gắn Bearer Token
-      final response = await dio.get("/users/profile");
+      final response = await dio.get("/api/users/me");
       final data = response.data;
 
       final settings = UserSettingsModel(
@@ -46,7 +46,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       print("PUT /users/profile BODY: $fields");
 
       // Interceptor sẽ tự gắn Authorization: Bearer token
-      await dio.put("/users/profile", data: fields);
+      await dio.put("/api/users/profile", data: fields);
 
       return true;
     } catch (e) {

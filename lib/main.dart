@@ -6,9 +6,8 @@ import 'package:camera/camera.dart';
 import 'package:locket_beta/landing/views/landing_ui.dart';
 import 'package:locket_beta/messenger/chat/chat.dart';
 import 'package:locket_beta/signup/cubit/signup_cubit.dart';
-import 'home/view/home.dart';
 import 'camera/cubit/camera_cubit.dart';
-import 'photo/cubit/photo_cubit.dart'; // Thêm import PhotoCubit
+import 'photo/cubit/photo_cubit.dart';
 
 List<CameraDescription> cameras = [];
 
@@ -53,7 +52,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Locket Beta',
         home: LandingUI(),
-        // home: ChatPage(currentUserId: "690effbcb90f29f230c54995",),
+        // home: ChatPage(currentUserId: "690effbcb90f29f230c54996",),
       ),
     );
   }

@@ -8,6 +8,8 @@ import 'package:locket_beta/photo/cubit/photo_cubit.dart';
 import 'package:locket_beta/photo/cubit/photo_state.dart';
 import 'package:locket_beta/profile/profile.dart';
 import 'package:locket_beta/model/photo_model.dart';
+import 'package:locket_beta/friends/cubit/friend_cubit.dart';
+import 'package:locket_beta/utils/local_storage.dart';
 import 'history_grid.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -21,8 +23,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool clicked = false;
   bool showGrid = false;
   late final PageController _pageController;
-  // ignore: unused_field
   int _currentIndex = 0;
+  final TextEditingController _captionController = TextEditingController();
 
   @override
   void initState() {
@@ -33,96 +35,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _captionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) {
-        final cubit = PhotoCubit();
-        cubit.fetchPhotos(); // Trigger fetch all photos on init
-        return cubit;
-      },
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) {
+            final cubit = PhotoCubit();
+            cubit.fetchPhotos();
+            return cubit;
+          },
+        ),
+        BlocProvider(create: (_) => FriendCubit()),
+      ],
       child: Scaffold(
         backgroundColor: showGrid ? Colors.black : const Color(0xff1d1b20),
         body: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              height: 70,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(100),
-                      color: const Color(0xff47444c),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const ProfileScreen()),
-                        );
-                      },
-                      icon: Icon(
-                        Icons.person,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const FriendsScreen()),
-                      );
-                    },
-                    child: Container(
-                      alignment: Alignment.center,
-                      width: 150,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(100),
-                        color: const Color(0xff47444c),
-                      ),
-                      child: const Text(
-                        "Add Friend",
-                        style: TextStyle(
-                          color: Color(0xffffffff),
-                          fontSize: 17,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(100),
-                      color: const Color(0xff47444c),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => ChatPage(
-                                      currentUserId: "690effbcb90f29f230c54995",
-                                    )));
-                      },
-                      icon: Icon(
-                        Icons.chat_bubble_outline,
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildTopBar(),
             Expanded(
               child: BlocBuilder<PhotoCubit, PhotoState>(
                 builder: (context, state) {
@@ -159,17 +93,73 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _buildTopBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      height: 70,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _circleIconButton(
+            icon: Icons.person,
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
+          ),
+          GestureDetector(
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const FriendsScreen())),
+            child: Container(
+              alignment: Alignment.center,
+              width: 150,
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(100),
+                color: const Color(0xff47444c),
+              ),
+              child: const Text(
+                "Add Friend",
+                style: TextStyle(color: Colors.white, fontSize: 17),
+              ),
+            ),
+          ),
+          _circleIconButton(
+            icon: Icons.chat_bubble_outline,
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        ChatPage(currentUserId: "690effbcb90f29f230c54995"))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _circleIconButton(
+      {required IconData icon, required VoidCallback onTap}) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(100),
+        color: const Color(0xff47444c),
+      ),
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, color: Colors.white.withOpacity(0.5)),
+      ),
+    );
+  }
+
   Widget _buildMainView(PhotoState state) {
     if (state is! PhotoLoaded || state.photos.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.photo_library_outlined,
-                color: Colors.white54, size: 64),
-            const SizedBox(height: 16),
-            const Text('No history yet',
-                style: TextStyle(color: Colors.white54)),
+          children: const [
+            Icon(Icons.photo_library_outlined, color: Colors.white54, size: 64),
+            SizedBox(height: 16),
+            Text('No history yet', style: TextStyle(color: Colors.white54)),
           ],
         ),
       );
@@ -186,10 +176,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 5),
           child: Column(
             children: [
-              const SizedBox(height: 20), // Adjusted padding after top bar
-              Expanded(
-                child: _buildHeader(photo),
-              ),
+              const SizedBox(height: 20),
+              Expanded(child: _buildHeader(photo)),
               Padding(
                 padding:
                     const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
@@ -197,6 +185,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildSenderInfo(photo),
+                    const SizedBox(height: 12),
+                    _buildCaptionInput(),
+                    const SizedBox(height: 20),
+                    _buildSendButton(photo),
                     const SizedBox(height: 40),
                     _buildBottomButtons(photo),
                   ],
@@ -214,39 +206,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return const Center(
           child: CircularProgressIndicator(color: Colors.white));
     }
-    return HistoryGrid(
-        photos: state
-            .photos); // Pass photos to grid for vertical scrolling with loop
-  }
-
-  Widget _buildImage(String url) {
-    final errorWidget =
-        (BuildContext context, Object error, StackTrace? stackTrace) =>
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: Colors.grey[800],
-              child: const Icon(Icons.image_not_supported,
-                  color: Colors.white54, size: 100),
-            );
-
-    if (url.startsWith('http')) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: errorWidget,
-      );
-    } else {
-      return Image.file(
-        File(url),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: errorWidget,
-      );
-    }
+    return HistoryGrid(photos: state.photos);
   }
 
   Widget _buildHeader(PhotoModel photo) {
@@ -254,20 +214,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
       clipBehavior: Clip.none,
       children: [
         ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(30),
-          ),
-          child: _buildImage(photo.imageUrl),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          child: Image.network(photo.imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity),
         ),
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [
-                Colors.black.withOpacity(0.8),
-                Colors.transparent,
-              ],
+              colors: [Colors.black.withOpacity(0.8), Colors.transparent],
               stops: const [0.0, 0.6],
             ),
           ),
@@ -300,8 +258,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildSenderInfo(PhotoModel photo) {
-    final userInitial =
-        photo.userId.isNotEmpty ? photo.userId[0].toUpperCase() : '?';
+    final username = photo.user['username'] ?? '?';
+    final avatarUrl = photo.user['avatarUrl'];
+    final userInitial = username.isNotEmpty ? username[0].toUpperCase() : '?';
     final diff = DateTime.now().difference(photo.timestamp);
     String timeAgo;
     if (diff.inDays > 0) {
@@ -320,21 +279,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
         CircleAvatar(
           radius: 18,
           backgroundColor: const Color(0xff47444c),
-          child: Text(
-            userInitial,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+          child: avatarUrl == null
+            ? Text(
+                username[0].toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              )
+            : null,
         ),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              photo.userId,
+              username,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -352,6 +314,107 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildCaptionInput() {
+    return TextField(
+      controller: _captionController,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: "Nhập tin nhắn…",
+        hintStyle: const TextStyle(color: Colors.white54),
+        filled: true,
+        fillColor: const Color(0xff2a2a2a),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSendButton(PhotoModel photo) {
+    return ElevatedButton.icon(
+      onPressed: () => _selectFriendAndSend(photo),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+      icon: const Icon(Icons.send),
+      label: const Text("Gửi cho bạn bè"),
+    );
+  }
+
+  void _selectFriendAndSend(PhotoModel photo) async {
+    final friendCubit = context.read<FriendCubit>();
+
+    await friendCubit.loadFriends();
+    final friends = friendCubit.friends;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xff1d1b20),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SizedBox(
+          height: 400,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text("Chọn bạn để gửi ảnh",
+                    style: TextStyle(color: Colors.white, fontSize: 18)),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: friends.length,
+                  itemBuilder: (_, index) {
+                    final friend = friends[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        child: Text(friend.name[0].toUpperCase()),
+                      ),
+                      title: Text(friend.name,
+                          style: const TextStyle(color: Colors.white)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _sendPhotoTo(friend.id, photo);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _sendPhotoTo(String friendId, PhotoModel photo) async {
+    final senderId = await LocalStorage.getUserId();
+    final caption = _captionController.text.trim();
+
+    if (senderId == null) return;
+
+    try {
+      final cubit = context.read<PhotoCubit>();
+
+      await cubit.sendPhoto(senderId, friendId, photo.imageUrl, caption);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Gửi ảnh thành công!")),
+      );
+
+      _captionController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Lỗi gửi: $e")),
+      );
+    }
   }
 
   Widget _buildBottomButtons(PhotoModel photo) {
@@ -373,8 +436,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         GestureDetector(
           onTap: () {
             setState(() => clicked = !clicked);
-
-            // 👉 Chuyển sang trang Home sau 100ms cho animation chạy
             Future.delayed(const Duration(milliseconds: 120), () {
               Navigator.push(
                 context,
@@ -389,10 +450,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             decoration: BoxDecoration(
               color: clicked ? Colors.grey[800] : Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xffFCB600),
-                width: 5,
-              ),
+              border: Border.all(color: const Color(0xffFCB600), width: 5),
             ),
           ),
         ),
