@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:locket_beta/login/views/login_ui.dart';
 import 'package:locket_beta/signup/views/signup_ui.dart';
 import "package:locket_beta/login/cubit/login_cubit.dart";
+import "package:locket_beta/signup/cubit/signup_cubit.dart";
 
 class LandingUI extends StatelessWidget {
   const LandingUI({super.key});
@@ -65,11 +66,22 @@ class LandingUI extends StatelessWidget {
                   width: 270,
                   height: 55,
                   child: ElevatedButton(
+                    // onPressed: () {
+                    //   Navigator.push(
+                    //     context,
+                    //     MaterialPageRoute(
+                    //         builder: (context) => const SignupUI()),
+                    //   );
+                    // },
+
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const SignupUI()),
+                            builder: (context) => BlocProvider<SignupCubit>(
+                                  create: (context) => SignupCubit(),
+                                  child: const SignupUI(),
+                                )),
                       );
                     },
                     style: ElevatedButton.styleFrom(
