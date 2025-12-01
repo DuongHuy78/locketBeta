@@ -68,16 +68,42 @@ class PhotoCubit extends Cubit<PhotoState> {
   Future<void> fetchPhotos() async {
     emit(PhotoLoading());
     try {
-      final userId = await LocalStorage.getUserId() as String? ?? '6911d640d34f6a5c5694199e';
-      final response = await _dio.get('/photos/user/$userId');
+      // Lấy userId của bản thân
+      final userId = await LocalStorage.getUserId() as String? ??
+          '6911d640d34f6a5c5694199e';
+      print('userId: $userId');
 
-      if (response.statusCode == 200) {
-        final List<dynamic> photosJson = response.data['photos'];
-        final photos = photosJson.map((e) => PhotoModel.fromJson(e)).toList();
-        emit(PhotoLoaded(photos));
+      // 1. Lấy danh sách bạn bè
+      final friendsResponse = await _dio.get('/friends/$userId');
+      List<String> friendIds = [];
+      if (friendsResponse.statusCode == 200) {
+        final List<dynamic> friendsJson = friendsResponse.data;
+        friendIds = friendsJson.map<String>((f) => f['id'] as String).toList();
       } else {
-        emit(PhotoError("Lỗi API: ${response.data}"));
+        print('Không lấy được danh sách bạn bè: ${friendsResponse.data}');
       }
+
+      // 2. Tạo list tất cả userId cần lấy ảnh (mình + bạn bè)
+      final allUserIds = [userId, ...friendIds];
+
+      List<PhotoModel> allPhotos = [];
+
+      // 3. Lấy ảnh từng user
+      for (var id in allUserIds) {
+        final response = await _dio.get('/photos/user/$id');
+        if (response.statusCode == 200) {
+          final List<dynamic> photosJson = response.data['photos'];
+          final photos = photosJson.map((e) => PhotoModel.fromJson(e)).toList();
+          allPhotos.addAll(photos);
+        } else {
+          print('Lỗi lấy ảnh user $id: ${response.data}');
+        }
+      }
+
+      // 4. Sắp xếp theo thời gian mới nhất lên đầu
+      allPhotos.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      emit(PhotoLoaded(allPhotos));
     } catch (e) {
       emit(PhotoError("Không thể tải danh sách ảnh: $e"));
     }
