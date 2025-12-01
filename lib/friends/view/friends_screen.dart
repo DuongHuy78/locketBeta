@@ -8,6 +8,7 @@ import 'package:locket_beta/friends/cubit/friendRequest_state.dart';
 import 'package:locket_beta/friends/cubit/recommendation_state.dart';
 import 'package:locket_beta/model/friend_model.dart';
 import 'package:locket_beta/model/friend_request_model.dart';
+import 'package:locket_beta/utils/local_storage.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key});
@@ -154,11 +155,12 @@ class _FriendsViewState extends State<FriendsView>
                 // Recommendations
                 BlocBuilder<RecommendationCubit, RecommendationState>(
                   builder: (context, state) {
-                    final cubit = context.read<RecommendationCubit>();
                     if (state is RecommendationLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is RecommendationLoaded) {
-                      return _friendList(state.recommendations, cubit,
+                      // Lấy FriendRequestCubit để gửi lời mời kết bạn
+                      final requestCubit = context.read<FriendRequestCubit>();
+                      return _friendList(state.recommendations, requestCubit,
                           isRecommendation: true);
                     } else if (state is RecommendationError) {
                       return Center(
@@ -214,8 +216,20 @@ class _FriendsViewState extends State<FriendsView>
                   color: friend.isActive ? Colors.green : Colors.grey)),
           trailing: isRecommendation
               ? IconButton(
-                  icon: const Icon(Icons.person_add, color: Colors.orange),
-                  onPressed: () => cubit.addFriend(friend),
+                  icon: const Icon(Icons.person_add, color: Color(0xFFFFC700)),
+                  onPressed: () async {
+                    final senderId = await LocalStorage.getUserId();
+                    if (senderId != null) {
+                      await cubit.sendFriendRequest(senderId, friend.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Friend request sent')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('User not logged in')),
+                      );
+                    }
+                  },
                 )
               : IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
