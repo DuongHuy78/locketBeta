@@ -9,6 +9,8 @@ import 'package:locket_beta/friends/cubit/recommendation_state.dart';
 import 'package:locket_beta/model/friend_model.dart';
 import 'package:locket_beta/model/friend_request_model.dart';
 import 'package:locket_beta/utils/local_storage.dart';
+import 'package:locket_beta/messenger/message/view/message.dart';
+import 'package:locket_beta/model/chat_model.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key});
@@ -236,14 +238,28 @@ class _FriendsViewState extends State<FriendsView>
                   children: [
                     // Chat button
                     IconButton(
-                        icon: const Icon(Icons.chat, color: Color(0xFFFFC700)),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('Start chat with ${friend.name}')),
-                          );
-                        }),
+                      icon: const Icon(Icons.chat, color: Color(0xFFFFC700)),
+                      onPressed: () async {
+                        final currentUserId = await LocalStorage.getUserId();
+                        if (currentUserId == null) return;
+
+                        final userShort = UserShort(
+                          id: friend.id,
+                          username: friend.name,
+                          avatar: friend.profileImage,
+                        );
+
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => MessagePage(
+                              currentFriend: userShort,
+                              chatId: friend.id,
+                              currentUserId: currentUserId,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     // Delete button
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
