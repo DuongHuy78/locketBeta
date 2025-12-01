@@ -44,6 +44,7 @@ class FriendsView extends StatefulWidget {
 class _FriendsViewState extends State<FriendsView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Map<String, bool> _pendingStatus = {}; // track pending state per friend
 
   @override
   void initState() {
@@ -78,7 +79,6 @@ class _FriendsViewState extends State<FriendsView>
       ),
       body: Column(
         children: [
-          // Social links
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12),
             child: Column(
@@ -160,7 +160,6 @@ class _FriendsViewState extends State<FriendsView>
                     if (state is RecommendationLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is RecommendationLoaded) {
-                      // Lấy FriendRequestCubit để gửi lời mời kết bạn
                       final requestCubit = context.read<FriendRequestCubit>();
                       return _friendList(state.recommendations, requestCubit,
                           isRecommendation: true);
@@ -195,6 +194,8 @@ class _FriendsViewState extends State<FriendsView>
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final friend = friends[index];
+        final isPending = _pendingStatus[friend.id] ?? false;
+
         return ListTile(
           leading: CircleAvatar(
             radius: 28,
@@ -217,26 +218,70 @@ class _FriendsViewState extends State<FriendsView>
               style: TextStyle(
                   color: friend.isActive ? Colors.green : Colors.grey)),
           trailing: isRecommendation
-              ? IconButton(
-                  icon: const Icon(Icons.person_add, color: Color(0xFFFFC700)),
+              ? ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isPending ? Colors.grey : Color(0xFFFFC700),
+                  ),
                   onPressed: () async {
-                    final senderId = await LocalStorage.getUserId();
-                    if (senderId != null) {
-                      await cubit.sendFriendRequest(senderId, friend.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Friend request sent')),
-                      );
+                    final requestCubit = cubit as FriendRequestCubit;
+                    if (!isPending) {
+                      final senderId = await LocalStorage.getUserId();
+                      if (senderId != null) {
+                        try {
+                          await requestCubit.sendFriendRequest(
+                              senderId, friend.id);
+                          setState(() {
+                            _pendingStatus[friend.id] = true;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Friend request sent')),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Failed to send request: $e')),
+                          );
+                        }
+                      }
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('User not logged in')),
+                      // Confirm unsend
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Confirm'),
+                          content: const Text('Unsend your request?'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel')),
+                            TextButton(
+                                onPressed: () async {
+                                  final senderId =
+                                      await LocalStorage.getUserId();
+                                  if (senderId != null) {
+                                    await cubit.cancelFriendRequest(friend.id);
+                                    setState(() {
+                                      _pendingStatus[friend.id] = false;
+                                    });
+                                  }
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('Ok')),
+                          ],
+                        ),
                       );
                     }
                   },
+                  child: Text(
+                    isPending ? 'Pending' : 'Add',
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 )
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Chat button
                     IconButton(
                       icon: const Icon(Icons.chat, color: Color(0xFFFFC700)),
                       onPressed: () async {
@@ -260,7 +305,6 @@ class _FriendsViewState extends State<FriendsView>
                         );
                       },
                     ),
-                    // Delete button
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
                       onPressed: () {
