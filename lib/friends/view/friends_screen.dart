@@ -231,9 +231,45 @@ class _FriendsViewState extends State<FriendsView>
                     }
                   },
                 )
-              : IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => cubit.removeFriend(friend.id),
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Chat button
+                    IconButton(
+                        icon: const Icon(Icons.chat, color: Color(0xFFFFC700)),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('Start chat with ${friend.name}')),
+                          );
+                        }),
+                    // Delete button
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Confirm'),
+                            content:
+                                const Text('You want to delete this friend?'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel')),
+                              TextButton(
+                                  onPressed: () {
+                                    cubit.removeFriend(friend.id);
+                                    Navigator.pop(context);
+                                  },
+                                  child: const Text('Ok')),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
         );
       },
