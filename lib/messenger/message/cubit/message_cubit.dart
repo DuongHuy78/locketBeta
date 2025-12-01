@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:locket_beta/messenger/message/cubit/message_state.dart';
 import 'package:locket_beta/model/chat_model.dart';
@@ -16,6 +15,7 @@ class MessageCubit extends Cubit<MessageState> {
   WebSocketChannel? _channel;
   StreamSubscription? _wsSub;
   Timer? _hbTimer;
+  Timer? _receiverOfflineTimer;
   Timer? _typingTimer;
   String _isTyping = 'false';
   MessageCubit({
@@ -30,6 +30,7 @@ class MessageCubit extends Cubit<MessageState> {
   Future<void> close() {
     // đảm bảo đóng WS khi cubit bị đóng (BlocProvider sẽ gọi close())
     _typingTimer?.cancel();
+    _receiverOfflineTimer?.cancel();
     _isTyping = 'false';
     _sendIsTyping();
     _cleanupSocket();
@@ -43,7 +44,7 @@ class MessageCubit extends Cubit<MessageState> {
       Uri.parse('ws://10.0.2.2:8000?userId=$currentUserId'),
     );
 
-    _sendPresence('online');
+    _sendPresence('online', currentUserId);
     _startHeartbeat();
     startHearIsTyping();
 
@@ -76,6 +77,14 @@ class MessageCubit extends Cubit<MessageState> {
       else if (data['event'] == 'presence_update') {
         final status = (data['status'] ?? '').toString();
         print("DEBUG: receiverStatus: " + status);
+        
+        if (status == 'online' || status == 'heartbeat') {
+          _scheduleReceiverOfflineTimer();
+        }
+        else {
+          _cancelReceiverOfflineTimer();
+        }
+
         if (state is MessageLoadedState) {
           final current = List<MessageModel>.from((state as MessageLoadedState).messengers);
           emit((state as MessageLoadedState).copyWith(messengers: current, receiverStatus: status));
@@ -98,7 +107,9 @@ class MessageCubit extends Cubit<MessageState> {
   }
 
   void _cleanupSocket() { 
-    try { _sendPresence('offline'); } catch (_) {}
+    try { _sendPresence('offline', currentUserId); } catch (_) {}
+    _receiverOfflineTimer?.cancel;
+    _receiverOfflineTimer = null;
     _stopHeartbeat();
     stopTyping();
     try { _wsSub?.cancel(); } catch (_) {}
@@ -109,11 +120,11 @@ class MessageCubit extends Cubit<MessageState> {
 
   void disconnect() => _cleanupSocket();
 
-  void _sendPresence(String status) {
+  void _sendPresence(String status, String senderId) {
     if (_channel == null) return;
     final payload = jsonEncode({
       'event': 'presence',
-      'userId': currentUserId,
+      'userId': senderId,
       'status': status, // 'online' | 'heartbeat' | 'offline'
       'timeSend' : DateTime.now().toIso8601String(),
     });
@@ -125,7 +136,7 @@ class MessageCubit extends Cubit<MessageState> {
   void _startHeartbeat() {
     _hbTimer?.cancel();
     _hbTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _sendPresence('heartbeat');
+      _sendPresence('heartbeat', currentUserId);
     });
   }
 
@@ -175,6 +186,25 @@ class MessageCubit extends Cubit<MessageState> {
       _isTyping = 'false';
       _sendIsTyping();
     }
+  }
+
+  void _scheduleReceiverOfflineTimer() {
+    _receiverOfflineTimer?.cancel();
+    _receiverOfflineTimer = Timer(const Duration(seconds: 10), () {
+      // sau 10s không có presence update -> đặt offline
+      if (state is MessageLoadedState) {
+        final current = List<MessageModel>.from((state as MessageLoadedState).messengers);
+        emit((state as MessageLoadedState).copyWith(messengers: current, receiverStatus: 'offline'));
+      } else {
+        emit(MessageLoadedState(messengers: [], receiverStatus: 'offline'));
+      }
+      _receiverOfflineTimer = null;
+    });
+  }
+
+  void _cancelReceiverOfflineTimer() {
+    _receiverOfflineTimer?.cancel();
+    _receiverOfflineTimer = null;
   }
 
   void sendMessage(String content) {

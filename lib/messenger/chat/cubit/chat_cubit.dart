@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -9,11 +10,19 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 class ChatCubit extends Cubit<ChatState>{
   String currentUserId;
   WebSocketChannel? _channel;
+  Timer? _receiverOfflineTimer;
   ChatCubit({
       required this.currentUserId,
   }) :super(ChatInitialState()) {
     _connectWebSocket();
     loadData();
+  }
+
+  @override
+  Future<void> close() {
+    _receiverOfflineTimer?.cancel();
+    _receiverOfflineTimer = null;
+    return super.close();
   }
 
   void _connectWebSocket() {
@@ -40,6 +49,14 @@ class ChatCubit extends Cubit<ChatState>{
       } else if (data['event'] == 'presence_update') {
         String status = data['status'];
         // print("DEBUG: receiverStatus: " + status);
+
+        if (status == 'online' || status == 'heartbeat') {
+          _scheduleReceiverOfflineTimer();
+        }
+        else {
+          _cancelReceiverOfflineTimer();
+        }
+
         final current = (state as ChatLoadedState).chats;
         emit(ChatLoadedState(receiverStatus: status, chatFilter: current, chats: current));
       } 
@@ -76,6 +93,22 @@ class ChatCubit extends Cubit<ChatState>{
     catch(e) {
       emit(ChatErrorState());
     }
+  }
+
+    void _scheduleReceiverOfflineTimer() {
+    _receiverOfflineTimer?.cancel();
+    _receiverOfflineTimer = Timer(const Duration(seconds: 10), () {
+      // sau 10s không có presence update -> đặt offline
+      if (state is ChatLoadedState) {
+        emit((state as ChatLoadedState).copyWith(receiverStatus: 'offline'));
+      }
+      _receiverOfflineTimer = null;
+    });
+  }
+
+  void _cancelReceiverOfflineTimer() {
+    _receiverOfflineTimer?.cancel();
+    _receiverOfflineTimer = null;
   }
 
     void filter(String query) {
