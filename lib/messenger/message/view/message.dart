@@ -280,7 +280,12 @@ class _MessagePageState extends State<MessagePage> {
               CircleAvatar(
                 radius: 26,
                 backgroundColor: const Color(0xFF2C2C2E),
-                child: Image.asset(currentFriend.avatar  ?? "assets/images/defaultUser.png" , height: 35,),
+                backgroundImage: currentFriend.avatar != null && currentFriend.avatar!.isNotEmpty
+                    ? NetworkImage(currentFriend.avatar!)
+                    : null,
+                child: currentFriend.avatar == null || currentFriend.avatar!.isEmpty
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
               ),
               const SizedBox(width: 8),
               Column(

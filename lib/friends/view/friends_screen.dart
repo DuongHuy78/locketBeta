@@ -200,9 +200,7 @@ class _FriendsViewState extends State<FriendsView>
           leading: CircleAvatar(
             radius: 28,
             backgroundColor: const Color(0xff2a2a2a),
-            backgroundImage: friend.profileImage != null
-                ? AssetImage(friend.profileImage!) as ImageProvider
-                : null,
+            backgroundImage: friend.profileImage != null ? NetworkImage(friend.profileImage!) : null,
             child: friend.profileImage == null
                 ? Text(friend.name[0].toUpperCase(),
                     style: const TextStyle(color: Colors.white))
@@ -353,9 +351,7 @@ class _FriendsViewState extends State<FriendsView>
           leading: CircleAvatar(
             radius: 28,
             backgroundColor: const Color(0xff2a2a2a),
-            backgroundImage: req.profileImage != null
-                ? AssetImage(req.profileImage!) as ImageProvider
-                : null,
+            backgroundImage: req.profileImage != null ? NetworkImage(req.profileImage!) : null,
             child: req.profileImage == null
                 ? Text(req.name[0].toUpperCase(),
                     style: const TextStyle(color: Colors.white))

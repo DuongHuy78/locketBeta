@@ -4,11 +4,13 @@ import 'package:locket_beta/model/profile_model.dart';
 import 'package:locket_beta/utils/local_storage.dart';
 import 'package:locket_beta/utils/api_client.dart';
 import 'package:intl/intl.dart';
+import 'package:locket_beta/api/friends/friend_api.dart';
 
 
 part 'profile_state.dart';
 
 class ProfileCubit extends Cubit<ProfileState> {
+  final FriendApi friendApi = FriendApi();
   ProfileCubit() : super(ProfileInitial());
 
   Future<void> fetchProfile() async {
@@ -46,6 +48,9 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       // Update locketCount
       userProfile.locketCount = userPhotos.length;
+      
+      final friends = await friendApi.getFriends(userId);
+      userProfile.friendCount = friends.length;
 
       // emit(ProfileLoaded(userProfile, userPhotos));
       emit(ProfileLoaded(userProfile, userPhotos));
