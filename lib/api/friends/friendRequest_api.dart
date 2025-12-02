@@ -4,7 +4,6 @@ import 'package:locket_beta/model/friend_request_model.dart';
 class FriendRequestApi {
   final Dio _dio = Dio(BaseOptions(baseUrl: 'http://10.0.2.2:8000'));
 
-  // Lấy danh sách yêu cầu kết bạn
   Future<List<FriendRequest>> getFriendRequests(String userId) async {
     try {
       final response = await _dio.get('/api/friend-requests/$userId');
@@ -16,7 +15,6 @@ class FriendRequestApi {
     }
   }
 
-  // Gửi lời mời kết bạn
   Future<void> sendFriendRequest(String senderId, String receiverId) async {
     try {
       await _dio.post('/api/friend-requests', data: {
@@ -28,7 +26,17 @@ class FriendRequestApi {
     }
   }
 
-  // Chấp nhận yêu cầu kết bạn
+  Future<void> unsendFriendRequest(String senderId, String receiverId) async {
+    try {
+      await _dio.delete('/api/friend-requests', data: {
+        'senderId': senderId,
+        'receiverId': receiverId,
+      });
+    } catch (e) {
+      throw Exception('Failed to unsend friend request: $e');
+    }
+  }
+
   Future<void> acceptFriendRequest(String requestId) async {
     try {
       await _dio.patch('/api/friend-requests/accept/$requestId');
@@ -37,7 +45,6 @@ class FriendRequestApi {
     }
   }
 
-  // Từ chối yêu cầu kết bạn
   Future<void> rejectFriendRequest(String requestId) async {
     try {
       await _dio.patch('/api/friend-requests/reject/$requestId');
