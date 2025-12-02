@@ -15,7 +15,7 @@ List<CameraDescription> cameras = [];
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runZonedGuarded(() async {
-    // Wrap với error zone cho production
+    // Wrap error zone cho production
     try {
       cameras = await availableCameras();
       developer.log('Cameras initialized: ${cameras.length}');
