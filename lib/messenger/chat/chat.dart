@@ -95,9 +95,10 @@ class _ChatPage extends State<ChatPage> {
                                     (m) => m.id != widget.currentUserId,
                                     orElse: () => chat.members.first,
                                   );
+                                  
                                   // xác định trạng thái online (an toàn với nhiều kiểu model)
                                   String status;
-                                  status = state.receiverStatus;
+                                  status = state.receiverStatus[otherMember.id] ?? "offline";
                                   final bool isOnline = status == 'online' || status == 'heartbeat';
 
                                   

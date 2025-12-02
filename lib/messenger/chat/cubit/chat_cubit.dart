@@ -10,7 +10,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 class ChatCubit extends Cubit<ChatState>{
   String currentUserId;
   WebSocketChannel? _channel;
-  Timer? _receiverOfflineTimer;
+  final Map<String, Timer> _presenceTimers = {}; // timer per userId
   ChatCubit({
       required this.currentUserId,
   }) :super(ChatInitialState()) {
@@ -20,8 +20,8 @@ class ChatCubit extends Cubit<ChatState>{
 
   @override
   Future<void> close() {
-    _receiverOfflineTimer?.cancel();
-    _receiverOfflineTimer = null;
+    _presenceTimers.values.forEach((t) => t.cancel());
+    _presenceTimers.clear();
     return super.close();
   }
 
@@ -48,18 +48,44 @@ class ChatCubit extends Cubit<ChatState>{
         }
       } else if (data['event'] == 'presence_update') {
         String status = data['status'];
+        String currentFriendId = data['userId'];
         // print("DEBUG: receiverStatus: " + status);
 
         if (status == 'online' || status == 'heartbeat') {
-          _scheduleReceiverOfflineTimer();
+          if(state is ChatLoadedState) {
+            final currentState = state as ChatLoadedState;
+            final newMap = Map<String, String>.from(currentState.receiverStatus);
+            newMap[currentFriendId] = status;
+            emit(currentState.copyWith(receiverStatus: newMap));
+          }
         }
         else {
-          _cancelReceiverOfflineTimer();
+          emit(ChatLoadedState(chats: [], chatFilter: [], receiverStatus: {currentFriendId: status}));
         }
 
-        final current = (state as ChatLoadedState).chats;
-        emit(ChatLoadedState(receiverStatus: status, chatFilter: current, chats: current));
-      } 
+        // manage per-user timer: Nếu online/heartbeat -> đặt lịch offline sau 10s
+        _presenceTimers[currentFriendId]?.cancel();
+        if (status == 'online' || status == 'heartbeat') {
+          _presenceTimers[currentFriendId] = Timer(const Duration(seconds: 10), () {
+            // cài offline sau 10s
+            if (state is ChatLoadedState) {
+              final currentState = state as ChatLoadedState;
+              final newMap = Map<String, String>.from(currentState.receiverStatus);
+              newMap[currentFriendId] = 'offline';
+              emit(currentState.copyWith(receiverStatus: newMap));
+            }
+            _presenceTimers.remove(currentFriendId);
+          });
+        } else {
+          _presenceTimers.remove(currentFriendId);
+          if (state is ChatLoadedState) {
+            final currentState = state as ChatLoadedState;
+            final newMap = Map<String, String>.from(currentState.receiverStatus);
+            newMap[currentFriendId] = 'offline';
+            emit(currentState.copyWith(receiverStatus: newMap));
+          }
+        }
+      }
 
     }, onError: (error) {
       emit(ChatErrorState());
@@ -85,7 +111,7 @@ class ChatCubit extends Cubit<ChatState>{
             })
             .toList();
         
-        emit(ChatLoadedState(chats: chats, chatFilter: chats));
+        emit(ChatLoadedState(chats: chats, chatFilter: chats,));
       } else {
         emit(ChatErrorState());
       }
@@ -93,22 +119,6 @@ class ChatCubit extends Cubit<ChatState>{
     catch(e) {
       emit(ChatErrorState());
     }
-  }
-
-    void _scheduleReceiverOfflineTimer() {
-    _receiverOfflineTimer?.cancel();
-    _receiverOfflineTimer = Timer(const Duration(seconds: 10), () {
-      // sau 10s không có presence update -> đặt offline
-      if (state is ChatLoadedState) {
-        emit((state as ChatLoadedState).copyWith(receiverStatus: 'offline'));
-      }
-      _receiverOfflineTimer = null;
-    });
-  }
-
-  void _cancelReceiverOfflineTimer() {
-    _receiverOfflineTimer?.cancel();
-    _receiverOfflineTimer = null;
   }
 
     void filter(String query) {
