@@ -13,23 +13,24 @@ class ChatLoadingState extends ChatState {
 class ChatLoadedState extends ChatState {
   List<ChatModel> chats;
   List<ChatModel> chatFilter;
-  String receiverStatus;
+  Map<String, String> receiverStatus; // userId -> status ('online'|'offline'|'heartbeat'...)
+
 
   ChatLoadedState({
     required this.chats,
     required this.chatFilter,
-    this.receiverStatus = 'Offline',
-  });
+    Map<String, String>? receiverStatus
+  }) : receiverStatus = receiverStatus ?? {};
 
   ChatLoadedState copyWith({
     List<ChatModel>? chats,
     List<ChatModel>? chatFilter,
-    String? receiverStatus
+    Map<String, String>? receiverStatus,
   }) {
     return ChatLoadedState(
       chats: chats ?? this.chats, 
       chatFilter: chatFilter ?? this.chatFilter,
-      receiverStatus: receiverStatus ?? this.receiverStatus
+      receiverStatus: receiverStatus ?? Map<String, String>.from(this.receiverStatus),
     );
   }
 }
