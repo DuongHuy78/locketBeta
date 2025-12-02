@@ -8,6 +8,9 @@ import 'package:locket_beta/friends/cubit/friendRequest_state.dart';
 import 'package:locket_beta/friends/cubit/recommendation_state.dart';
 import 'package:locket_beta/model/friend_model.dart';
 import 'package:locket_beta/model/friend_request_model.dart';
+import 'package:locket_beta/utils/local_storage.dart';
+import 'package:locket_beta/messenger/message/view/message.dart';
+import 'package:locket_beta/model/chat_model.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key});
@@ -41,6 +44,7 @@ class FriendsView extends StatefulWidget {
 class _FriendsViewState extends State<FriendsView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Map<String, bool> _pendingStatus = {}; // track pending state per friend
 
   @override
   void initState() {
@@ -75,7 +79,6 @@ class _FriendsViewState extends State<FriendsView>
       ),
       body: Column(
         children: [
-          // Social links
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12),
             child: Column(
@@ -154,11 +157,11 @@ class _FriendsViewState extends State<FriendsView>
                 // Recommendations
                 BlocBuilder<RecommendationCubit, RecommendationState>(
                   builder: (context, state) {
-                    final cubit = context.read<RecommendationCubit>();
                     if (state is RecommendationLoading) {
                       return const Center(child: CircularProgressIndicator());
                     } else if (state is RecommendationLoaded) {
-                      return _friendList(state.recommendations, cubit,
+                      final requestCubit = context.read<FriendRequestCubit>();
+                      return _friendList(state.recommendations, requestCubit,
                           isRecommendation: true);
                     } else if (state is RecommendationError) {
                       return Center(
@@ -191,6 +194,8 @@ class _FriendsViewState extends State<FriendsView>
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final friend = friends[index];
+        final isPending = _pendingStatus[friend.id] ?? false;
+
         return ListTile(
           leading: CircleAvatar(
             radius: 28,
@@ -213,13 +218,118 @@ class _FriendsViewState extends State<FriendsView>
               style: TextStyle(
                   color: friend.isActive ? Colors.green : Colors.grey)),
           trailing: isRecommendation
-              ? IconButton(
-                  icon: const Icon(Icons.person_add, color: Colors.orange),
-                  onPressed: () => cubit.addFriend(friend),
+              ? ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isPending ? Colors.grey : Color(0xFFFFC700),
+                  ),
+                  onPressed: () async {
+                    final requestCubit = cubit as FriendRequestCubit;
+                    if (!isPending) {
+                      final senderId = await LocalStorage.getUserId();
+                      if (senderId != null) {
+                        try {
+                          await requestCubit.sendFriendRequest(
+                              senderId, friend.id);
+                          setState(() {
+                            _pendingStatus[friend.id] = true;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Friend request sent')),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Failed to send request: $e')),
+                          );
+                        }
+                      }
+                    } else {
+                      // Confirm unsend
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Confirm'),
+                          content: const Text('Unsend your request?'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel')),
+                            TextButton(
+                                onPressed: () async {
+                                  final senderId =
+                                      await LocalStorage.getUserId();
+                                  if (senderId != null) {
+                                    await cubit.cancelFriendRequest(friend.id);
+                                    setState(() {
+                                      _pendingStatus[friend.id] = false;
+                                    });
+                                  }
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('Ok')),
+                          ],
+                        ),
+                      );
+                    }
+                  },
+                  child: Text(
+                    isPending ? 'Pending' : 'Add',
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 )
-              : IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => cubit.removeFriend(friend.id),
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chat, color: Color(0xFFFFC700)),
+                      onPressed: () async {
+                        final currentUserId = await LocalStorage.getUserId();
+                        if (currentUserId == null) return;
+
+                        final userShort = UserShort(
+                          id: friend.id,
+                          username: friend.name,
+                          avatar: friend.profileImage,
+                        );
+
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => MessagePage(
+                              currentFriend: userShort,
+                              chatId: friend.id,
+                              currentUserId: currentUserId,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Confirm'),
+                            content:
+                                const Text('You want to delete this friend?'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel')),
+                              TextButton(
+                                  onPressed: () {
+                                    cubit.removeFriend(friend.id);
+                                    Navigator.pop(context);
+                                  },
+                                  child: const Text('Ok')),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
         );
       },
