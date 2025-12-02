@@ -39,7 +39,10 @@ Future<void> showLogoutDialog(BuildContext context) async {
               actions: [
                 TextButton(
                   onPressed: isLoading ? null : () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.black),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: isLoading
@@ -48,7 +51,7 @@ Future<void> showLogoutDialog(BuildContext context) async {
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   child: const Text(
                     'Agree',
-                    style: TextStyle(color: Colors.black),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],

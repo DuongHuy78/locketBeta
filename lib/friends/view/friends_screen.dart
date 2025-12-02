@@ -12,6 +12,31 @@ import 'package:locket_beta/utils/local_storage.dart';
 import 'package:locket_beta/messenger/message/view/message.dart';
 import 'package:locket_beta/model/chat_model.dart';
 
+/// Keep-alive wrapper for TabBarView children so their subtrees aren't rebuilt
+/// (helps preserving local UI state).
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+  final String storageKey;
+  const _KeepAlivePage(
+      {required this.child, required this.storageKey, Key? key})
+      : super(key: key);
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin<_KeepAlivePage> {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key});
 
@@ -44,13 +69,31 @@ class FriendsView extends StatefulWidget {
 class _FriendsViewState extends State<FriendsView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  Map<String, bool> _pendingStatus = {}; // track pending state per friend
+
+  /// track pending state per friendId in-memory for this UI session
+  final Map<String, bool> _pendingStatus = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Optional: if you have an API returning outgoing pending requests,
+    // load it here and populate _pendingStatus accordingly.
+    //
+    // example (if implemented):
+    // _loadOutgoingPending();
   }
+
+  // Example helper if you later add an endpoint to fetch outgoing pending list:
+  // Future<void> _loadOutgoingPending() async {
+  //   final senderId = await LocalStorage.getUserId();
+  //   if (senderId == null) return;
+  //   final outgoing = await context.read<FriendRequestCubit>().getOutgoingRequests(senderId);
+  //   // outgoing: List<String> receiverIds
+  //   setState(() {
+  //     for (final r in outgoing) _pendingStatus[r] = true;
+  //   });
+  // }
 
   @override
   void dispose() {
@@ -116,62 +159,72 @@ class _FriendsViewState extends State<FriendsView>
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Your Friends
-                BlocBuilder<FriendCubit, FriendState>(
-                  builder: (context, state) {
-                    final cubit = context.read<FriendCubit>();
-                    if (state is FriendLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (state is FriendLoaded) {
-                      return _friendList(state.friends, cubit);
-                    } else if (state is FriendError) {
-                      return Center(
-                          child: Text(state.message,
-                              style: const TextStyle(color: Colors.white)));
-                    }
-                    return const Center(
-                        child: Text('No Friends',
-                            style: TextStyle(color: Colors.white)));
-                  },
+                // Your Friends (keep alive)
+                _KeepAlivePage(
+                  storageKey: 'your_friends',
+                  child: BlocBuilder<FriendCubit, FriendState>(
+                    builder: (context, state) {
+                      final cubit = context.read<FriendCubit>();
+                      if (state is FriendLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (state is FriendLoaded) {
+                        return _friendList(state.friends, cubit);
+                      } else if (state is FriendError) {
+                        return Center(
+                            child: Text(state.message,
+                                style: const TextStyle(color: Colors.white)));
+                      }
+                      return const Center(
+                          child: Text('No Friends',
+                              style: TextStyle(color: Colors.white)));
+                    },
+                  ),
                 ),
 
                 // Friend Requests
-                BlocBuilder<FriendRequestCubit, FriendRequestState>(
-                  builder: (context, state) {
-                    final cubit = context.read<FriendRequestCubit>();
-                    if (state is FriendRequestLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (state is FriendRequestLoaded) {
-                      return _friendRequestList(state.requests, cubit);
-                    } else if (state is FriendRequestError) {
-                      return Center(
-                          child: Text(state.message,
-                              style: const TextStyle(color: Colors.white)));
-                    }
-                    return const Center(
-                        child: Text('No Requests',
-                            style: TextStyle(color: Colors.white)));
-                  },
+                _KeepAlivePage(
+                  storageKey: 'friend_requests',
+                  child: BlocBuilder<FriendRequestCubit, FriendRequestState>(
+                    builder: (context, state) {
+                      final cubit = context.read<FriendRequestCubit>();
+                      if (state is FriendRequestLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (state is FriendRequestLoaded) {
+                        return _friendRequestList(state.requests, cubit);
+                      } else if (state is FriendRequestError) {
+                        return Center(
+                            child: Text(state.message,
+                                style: const TextStyle(color: Colors.white)));
+                      }
+                      return const Center(
+                          child: Text('No Requests',
+                              style: TextStyle(color: Colors.white)));
+                    },
+                  ),
                 ),
 
                 // Recommendations
-                BlocBuilder<RecommendationCubit, RecommendationState>(
-                  builder: (context, state) {
-                    if (state is RecommendationLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (state is RecommendationLoaded) {
-                      final requestCubit = context.read<FriendRequestCubit>();
-                      return _friendList(state.recommendations, requestCubit,
-                          isRecommendation: true);
-                    } else if (state is RecommendationError) {
-                      return Center(
-                          child: Text(state.message,
-                              style: const TextStyle(color: Colors.white)));
-                    }
-                    return const Center(
-                        child: Text('No Recommendations',
-                            style: TextStyle(color: Colors.white)));
-                  },
+                _KeepAlivePage(
+                  storageKey: 'recommendations',
+                  child: BlocBuilder<RecommendationCubit, RecommendationState>(
+                    builder: (context, state) {
+                      if (state is RecommendationLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (state is RecommendationLoaded) {
+                        // pass FriendRequestCubit so buttons can call send/unsend
+                        final requestCubit = context.read<FriendRequestCubit>();
+                        return _friendList(state.recommendations, requestCubit,
+                            isRecommendation: true);
+                      } else if (state is RecommendationError) {
+                        return Center(
+                            child: Text(state.message,
+                                style: const TextStyle(color: Colors.white)));
+                      }
+                      return const Center(
+                          child: Text('No Recommendations',
+                              style: TextStyle(color: Colors.white)));
+                    },
+                  ),
                 ),
               ],
             ),
@@ -188,7 +241,9 @@ class _FriendsViewState extends State<FriendsView>
           child: Text('No friends',
               style: TextStyle(color: Colors.white, fontSize: 16)));
     }
+
     return ListView.separated(
+      key: PageStorageKey('friend_list_${isRecommendation ? "rec" : "all"}'),
       padding: const EdgeInsets.all(12),
       itemCount: friends.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -201,7 +256,7 @@ class _FriendsViewState extends State<FriendsView>
             radius: 28,
             backgroundColor: const Color(0xff2a2a2a),
             backgroundImage: friend.profileImage != null
-                ? AssetImage(friend.profileImage!) as ImageProvider
+                ? NetworkImage(friend.profileImage!)
                 : null,
             child: friend.profileImage == null
                 ? Text(friend.name[0].toUpperCase(),
@@ -221,32 +276,40 @@ class _FriendsViewState extends State<FriendsView>
               ? ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        isPending ? Colors.grey : Color(0xFFFFC700),
+                        isPending ? Colors.grey : const Color(0xFFFFC700),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
+                    // ensure type
                     final requestCubit = cubit as FriendRequestCubit;
                     if (!isPending) {
                       final senderId = await LocalStorage.getUserId();
-                      if (senderId != null) {
-                        try {
-                          await requestCubit.sendFriendRequest(
-                              senderId, friend.id);
-                          setState(() {
-                            _pendingStatus[friend.id] = true;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Friend request sent')),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Failed to send request: $e')),
-                          );
-                        }
+                      if (senderId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('User not logged in')),
+                        );
+                        return;
+                      }
+                      // try send
+                      try {
+                        await requestCubit.sendFriendRequest(
+                            senderId, friend.id);
+                        setState(() {
+                          _pendingStatus[friend.id] = true;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Friend request sent')),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to send request: $e')),
+                        );
                       }
                     } else {
-                      // Confirm unsend
+                      // confirm unsend
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
@@ -254,19 +317,38 @@ class _FriendsViewState extends State<FriendsView>
                           content: const Text('Unsend your request?'),
                           actions: [
                             TextButton(
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: () => Navigator.of(context).pop(),
                                 child: const Text('Cancel')),
                             TextButton(
                                 onPressed: () async {
+                                  Navigator.of(context).pop(); // close dialog
                                   final senderId =
                                       await LocalStorage.getUserId();
-                                  if (senderId != null) {
-                                    await cubit.cancelFriendRequest(friend.id);
+                                  if (senderId == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('User not logged in')),
+                                    );
+                                    return;
+                                  }
+                                  try {
+                                    await requestCubit
+                                        .unsendFriendRequest(friend.id);
                                     setState(() {
                                       _pendingStatus[friend.id] = false;
                                     });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content:
+                                              Text('Friend request cancelled')),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text('Failed to cancel: $e')),
+                                    );
                                   }
-                                  Navigator.pop(context);
                                 },
                                 child: const Text('Ok')),
                           ],
@@ -282,11 +364,17 @@ class _FriendsViewState extends State<FriendsView>
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Chat button
                     IconButton(
                       icon: const Icon(Icons.chat, color: Color(0xFFFFC700)),
                       onPressed: () async {
                         final currentUserId = await LocalStorage.getUserId();
-                        if (currentUserId == null) return;
+                        if (currentUserId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('User not logged in')),
+                          );
+                          return;
+                        }
 
                         final userShort = UserShort(
                           id: friend.id,
@@ -305,6 +393,8 @@ class _FriendsViewState extends State<FriendsView>
                         );
                       },
                     ),
+
+                    // Delete friend (confirmation)
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
                       onPressed: () {
@@ -320,7 +410,9 @@ class _FriendsViewState extends State<FriendsView>
                                   child: const Text('Cancel')),
                               TextButton(
                                   onPressed: () {
-                                    cubit.removeFriend(friend.id);
+                                    // friend cubit expected
+                                    final friendCubit = cubit as FriendCubit;
+                                    friendCubit.removeFriend(friend.id);
                                     Navigator.pop(context);
                                   },
                                   child: const Text('Ok')),
@@ -354,7 +446,7 @@ class _FriendsViewState extends State<FriendsView>
             radius: 28,
             backgroundColor: const Color(0xff2a2a2a),
             backgroundImage: req.profileImage != null
-                ? AssetImage(req.profileImage!) as ImageProvider
+                ? NetworkImage(req.profileImage!)
                 : null,
             child: req.profileImage == null
                 ? Text(req.name[0].toUpperCase(),
