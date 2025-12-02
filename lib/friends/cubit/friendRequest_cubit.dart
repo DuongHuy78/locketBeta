@@ -31,7 +31,7 @@ class FriendRequestCubit extends Cubit<FriendRequestState> {
     }
   }
 
-  Future<void> cancelFriendRequest(String receiverId) async {
+  Future<void> unsendFriendRequest(String receiverId) async {
     try {
       final senderId = await LocalStorage.getUserId();
       if (senderId == null) throw Exception("User not logged in");
