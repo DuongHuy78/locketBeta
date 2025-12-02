@@ -120,7 +120,7 @@ class ProfileScreen extends StatelessWidget {
                             children: [
                               _buildStatColumn('Lockets', user.locketCount.toString()),
                               // _buildStatColumn('Streak', '${user.streak.toString()}d'),
-                              _buildStatColumn('Friends', '0'), 
+                              _buildStatColumn('Friends', user.friendCount.toString()), 
                             ],
                           ),
                           const SizedBox(height: 24),

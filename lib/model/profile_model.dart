@@ -5,6 +5,7 @@ class UserProfileModel {
   final String profileImageUrl;
   int locketCount;
   final int streak;
+  int friendCount; 
 
   UserProfileModel({
     required this.id,
@@ -13,5 +14,6 @@ class UserProfileModel {
     required this.profileImageUrl,
     this.locketCount = 0,
     this.streak = 0,
+    this.friendCount = 0,
   });
 }

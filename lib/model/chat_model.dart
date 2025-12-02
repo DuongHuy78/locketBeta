@@ -19,7 +19,7 @@ class UserShort {
     final Map<String, dynamic> map = Map<String, dynamic>.from(json as Map);
     final id = map['_id']?.toString() ?? '';
     final username = map['username'] ?.toString();
-    final avatar = map['avatar']?.toString();
+    final avatar = map['avatarUrl']?.toString();
 
     return UserShort(id: id, username: username, avatar: avatar);
   }
@@ -28,7 +28,7 @@ class UserShort {
     return {
       '_id': id,
       if (username != null) 'username': username,
-      if (avatar != null) 'avatar': avatar,
+      if (avatar != null) 'avatarUrl': avatar,
     };
   }
 }
